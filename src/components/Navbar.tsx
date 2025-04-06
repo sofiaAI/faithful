@@ -1,7 +1,7 @@
 'use client';
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 const links = [
   { href: "/", label: "Home" },
@@ -13,7 +13,16 @@ const links = [
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
 
+  const handleLogout = () => {
+    // Remove the JWT token from localStorage
+    localStorage.removeItem('token');
+    
+    // Redirect to the login page or homepage
+    router.push('/login');
+  };
+  
   return (
     <nav className="bg-white shadow p-4 flex gap-4 sticky top-0 z-10">
       {links.map((link) => (
@@ -25,6 +34,7 @@ export default function Navbar() {
           {link.label}
         </Link>
       ))}
+      <button onClick={handleLogout}>Logout</button>
     </nav>
   );
 }
