@@ -1,18 +1,26 @@
-import "./globals.css";
-import { ReactNode } from "react";
-import Navbar from "@/components/Navbar";
+import './globals.css';
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import Layout from '@/components/Layout';
+import FluidBackground from '@/components/FluidBackground';
 
-export const metadata = {
-  title: "Health & Journal App",
-  description: "Track your goals, journal, and astrology ✨",
+export const metadata: Metadata = {
+  title: 'Faithful App',
+  description: 'Track health goals, journal, and more with Faithful App',
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+const inter = Inter({ subsets: ['latin'] });
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
-      <body className="bg-gray-100 text-gray-900">
-        <Navbar />
-        <main className="p-4">{children}</main>
+      <body>
+        <FluidBackground />
+        <Layout>{children}</Layout>
       </body>
     </html>
   );

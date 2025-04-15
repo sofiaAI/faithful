@@ -12,7 +12,8 @@ app.secret_key = 'your_secret_key_here'  # For sessions
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite3'  # SQLite for simplicity
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
-CORS(app, supports_credentials=True)  # Enable CORS with support for credentials
+CORS(app, supports_credentials=True, origins=["http://localhost:3000"], 
+     resources={r"/*": {"origins": ["http://localhost:3000"]}})  # Enable CORS with support for credentials
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -22,6 +23,26 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(100), nullable=False)
+
+class Goal(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    target_date = db.Column(db.Date, nullable=True)
+    completed = db.Column(db.Boolean, default=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    user = db.relationship('User', backref=db.backref('goals', lazy=True))
+
+class JournalEntry(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.Date, nullable=False, default=datetime.date.today)
+    content = db.Column(db.Text, nullable=False)
+    mood = db.Column(db.String(100), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    user = db.relationship('User', backref=db.backref('journal_entries', lazy=True))
+
 
 # Create the database tables
 with app.app_context():
@@ -54,7 +75,7 @@ def register():
 
     # Generate JWT Token for the newly registered user
     token = jwt.encode(
-        {'user_id': new_user.id, 'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)},
+        {'user_id': new_user.id, 'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=12)},
         app.secret_key,
         algorithm='HS256'
     )
@@ -73,7 +94,7 @@ def login():
     if user and check_password_hash(user.password, password):
         # Generate JWT token
         token = jwt.encode(
-            {'user_id': user.id, 'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)}, 
+            {'user_id': user.id, 'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=12)}, 
             app.secret_key, 
             algorithm='HS256'
         )
@@ -99,6 +120,86 @@ def protected():
     else:
         return jsonify({"error": "Token missing"}), 401
 
+
+@app.route('/goals', methods=['POST'])
+def create_goal():
+    goal = request.get_json().get('goal')
+    token = request.headers.get('Authorization').split(" ")[1]
+    try:
+        decoded_token = jwt.decode(token, app.secret_key, algorithms=["HS256"])
+        user_id = decoded_token['user_id']
+    except jwt.ExpiredSignatureError:
+        return jsonify({"error": "Token has expired"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"error": "Invalid token"}), 401
+
+    new_goal = Goal(
+        title=goal.get('title'),
+        description=goal.get('description'),
+        completed=False,
+        target_date=datetime.datetime.strptime(goal.get('targetDate'), '%Y-%m-%d').date() if goal.get('targetDate') else None,
+        user_id=user_id
+    )
+    db.session.add(new_goal)
+    db.session.commit()
+
+    return jsonify({"message": "Goal created successfully!"}), 201
+
+
+@app.route('/goals', methods=['GET'])
+def get_goals():
+    token = request.headers.get('Authorization').split(" ")[1]
+    try:
+        decoded_token = jwt.decode(token, app.secret_key, algorithms=["HS256"])
+        user_id = decoded_token['user_id']
+    except jwt.ExpiredSignatureError:
+        return jsonify({"error": "Token has expired"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"error": "Invalid token"}), 401
+
+    goals = Goal.query.filter_by(user_id=user_id).all()
+    goals_data = [{"id": goal.id, "title": goal.title, "description": goal.description, "completed": goal.completed, "target_date": goal.target_date} for goal in goals]
+    return jsonify(goals_data), 200
+
+
+@app.route('/journal', methods=['POST'])
+def create_journal_entry():
+    data = request.get_json().get('entry')
+    token = request.headers.get('Authorization').split(" ")[1]
+    try:
+        decoded_token = jwt.decode(token, app.secret_key, algorithms=["HS256"])
+        user_id = decoded_token['user_id']
+    except jwt.ExpiredSignatureError:
+        return jsonify({"error": "Token has expired"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"error": "Invalid token"}), 401
+
+    new_entry = JournalEntry(
+        content=data.get('content'),
+        mood=data.get('mood'),
+        user_id=user_id
+    )
+    db.session.add(new_entry)
+    db.session.commit()
+
+    return jsonify({"message": "Journal entry created successfully!"}), 201
+
+
+@app.route('/journal', methods=['GET'])
+def get_journal_entries():
+    token = request.headers.get('Authorization').split(" ")[1]
+    try:
+        decoded_token = jwt.decode(token, app.secret_key, algorithms=["HS256"])
+        user_id = decoded_token['user_id']
+    except jwt.ExpiredSignatureError:
+        return jsonify({"error": "Token has expired"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"error": "Invalid token"}), 401
+
+    entries = JournalEntry.query.filter_by(user_id=user_id).all()
+    entries_data = [{"id": entry.id, "content": entry.content, "mood": entry.mood} for entry in entries]
+
+    return jsonify(entries_data), 200
 
 if __name__ == "__main__":
     app.run(debug=True)

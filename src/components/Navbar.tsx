@@ -1,40 +1,25 @@
-'use client';
-
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-
-const links = [
-  { href: "/", label: "Home" },
-  { href: "/journal", label: "Journal" },
-  { href: "/goals", label: "Goals" },
-  { href: "/astro", label: "Astro" },
-  { href: "/login", label: "Login" },
-];
+import Link from 'next/link';
 
 export default function Navbar() {
-  const pathname = usePathname();
-  const router = useRouter();
-
   const handleLogout = () => {
     // Remove the JWT token from localStorage
     localStorage.removeItem('token');
     
     // Redirect to the login page or homepage
-    router.push('/login');
+    window.location.href = '/login';
   };
   
   return (
-    <nav className="bg-white shadow p-4 flex gap-4 sticky top-0 z-10">
-      {links.map((link) => (
-        <Link
-          key={link.href}
-          href={link.href}
-          className={`hover:underline ${pathname === link.href ? "font-bold text-blue-600" : ""}`}
-        >
-          {link.label}
-        </Link>
-      ))}
-      <button onClick={handleLogout}>Logout</button>
+    <nav className="bg-black/30 backdrop-blur p-4 flex justify-between items-center shadow-md">
+      <h1 className="text-xl font-bold text-yellow-400">✨ Spyra</h1>
+      <div className="space-x-4 text-yellow-200">
+        <Link href="/goals">Goals</Link>
+        <Link href="/journal">Journal</Link>
+        <Link href="/astro">Astro</Link>
+        <button onClick={handleLogout}>
+          Logout
+        </button>
+      </div>
     </nav>
   );
 }
